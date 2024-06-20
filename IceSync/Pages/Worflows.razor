@@ -1,0 +1,101 @@
+﻿@page "/workflows"
+@using IceSync.Data
+@using IceSync.Services.Interfaces
+@inject IUniversalLoaderService LoaderService
+@inject AppDbContext DbContext
+
+<h3>Workflows</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Workflow Id</th>
+            <th>Workflow Name</th>
+            <th>Is Active</th>
+            <th>Multi Exec Behavior</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var workflow in Workflows)
+        {
+            <tr>
+                <td>@workflow.Id</td>
+                <td>@workflow.Name</td>
+                <td>@workflow.IsActive</td>
+                <td>@workflow.MultiExecBehavior</td>
+                <td>
+                    <button @onclick="() => RunWorkflow(workflow.Id)">Run</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<style>
+    .notification {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        color: #fff;
+        display: none;
+    }
+
+        .notification.show {
+            display: block;
+        }
+
+        .notification.success {
+            background-color: #4CAF50;
+        }
+
+        .notification.failure {
+            background-color: #f44336;
+        }
+</style>
+
+<div class="notification @notificationCssClass" id="notification">
+    @notificationMessage
+</div>
+
+@code {
+    private List<Workflow> Workflows = new List<Workflow>();
+    private string notificationMessage = string.Empty;
+    private string notificationCssClass = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Workflows = await LoaderService.GetWorkflowsAsync();
+    }
+
+    private async Task RunWorkflow(int workflowId)
+    {
+        var success = await LoaderService.RunWorkflowAsync(workflowId);
+        if (success)
+        {
+            ShowNotification("Workflow ran successfully!", "success");
+        }
+        else
+        {
+            ShowNotification("Failed to run workflow!", "failure");
+        }
+    }
+
+    private void ShowNotification(string message, string cssClass)
+    {
+        notificationMessage = message;
+        notificationCssClass = $"show {cssClass}";
+        StateHasChanged();
+
+        //This task will ide the notification after 3 seconds
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            notificationMessage = string.Empty;
+            notificationCssClass = string.Empty;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+}
